@@ -1,0 +1,76 @@
+# set mode to "local" to run mlflow tracking on the localhost
+# set mode to "remote" to run mlflow tracking on the remote server
+
+mode: remote  # or "remote"
+
+# Update these config parameters if you set mode to remote
+mlflow_remote:
+
+  # Pretrained model repo from HF hub
+  model_name: meta-llama/Llama-3.2-3B   
+
+  # Name of the MLFlow experiment               
+  experiment_name: llama-32-3b_test
+
+  # (Optional) Name of the individual run inside an experiment                            
+  run_name:                       
+
+  # Registered model name                         
+  mlflow_registry_name: llama-32-3b        
+
+  # MLFlow tracking server URL (remote server)                   
+  tracking_url: http://10.10.1.45:5000 
+
+  # use s3 compatible bucket called mlflow-artifacts.                     
+  artifact_uri: s3://mlflow-artifacts/  
+
+  # tells mlflow where to send S3 API requests                           
+  mlflow_s3_endpoint_url: http://10.10.1.45:9000 
+
+  # minIO credentials             
+  aws_access_key_id: minioadmin          
+
+  # minIO credentials                        
+  aws_secret_access_key: minioadmin   
+
+  # Directory containing trained/finetuned model
+  trained_model_dir: meta-llama/Llama-3.2-3B       
+
+  # Set to "True" to log system utilization metrics or False to not log                  
+  log_system_metrics: False
+  
+  # Set to "True" to use cpu and false to decide during run time
+  force_cpu: True
+
+  inference_device: cuda
+
+  context_window: 512
+
+# Update these config parameters if you set mode to local
+mlflow_local:
+
+  # Pretrained model repo from HF hub
+  model_name: google/flan-t5-base   
+
+  # Name of the MLFlow experiment               
+  experiment_name: flan-t5-finetuning
+
+  # (Optional) Name of the individual run inside an experiment                            
+  run_name:                       
+
+  # Registered model name                         
+  mlflow_registry_name: flant5_text2text         
+
+  # MLFlow tracking server URL (local server)                   
+  tracking_url: http://localhost:5000 
+
+  # Directory containing trained/finetuned model
+  trained_model_dir: google/flan-t5-base       
+
+  # Set to "True" to log system utilization metrics or False to not log                  
+  log_system_metrics: False
+
+  # Set to "True" to use cpu and false to decide during run time
+  force_cpu: True
+  
+  context_window: 100
