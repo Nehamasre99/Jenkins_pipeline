@@ -128,7 +128,7 @@ class MLflowTracker:
             artifact_path="model",
             python_model=Llama3bWrapper(context_window = cfg.context_window, device = cfg.inference_device), 
             artifacts=artifacts,
-            code_path=["./LlamaWrapper.py"],
+            code_path=["./mlops_sdk/LlamaWrapper.py"],
             signature=get_signature()
         )
 
