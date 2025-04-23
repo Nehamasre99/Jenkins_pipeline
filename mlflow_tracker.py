@@ -4,10 +4,15 @@ Defines the class and provides APIs for MLFlow experiment tracking and logging
 """
 
 import os
+import sys
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-from .LlamaWrapper import Llama3bWrapper, get_signature, sanitize_tokenizer_config
 import mlflow
 import shutil
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
+from LlamaWrapper import Llama3bWrapper, get_signature, sanitize_tokenizer_config
 from .device_config import cfg, mode, get_device
 
 class MLflowTracker:
