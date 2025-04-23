@@ -4,7 +4,7 @@ import yaml
 from .config_schema import LocalMLflowConfig, RemoteMLflowConfig
 
 # Define the absolute path to the config file
-config_path = os.path.join(os.path.dirname(__file__), 'config', 'mlflow_config.yaml')
+config_path = os.path.join(os.path.dirname(__file__), 'mlflow_config.yaml')
 
 # Load the config file
 with open(config_path, "r") as f:
