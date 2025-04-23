@@ -5,7 +5,7 @@ Defines the class and provides APIs for MLFlow experiment tracking and logging
 
 import os
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-from LlamaWrapper import Llama3bWrapper, get_signature, sanitize_tokenizer_config
+from .LlamaWrapper import Llama3bWrapper, get_signature, sanitize_tokenizer_config
 import mlflow
 import shutil
 from .device_config import cfg, mode, get_device
