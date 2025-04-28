@@ -108,31 +108,35 @@ class MLflowTracker:
         """
         mlflow.log_metrics(metrics, step=step)
 
-    def log_model(self, model, tokenizer):
+    def log_model(self, model, tokenizer, export_format="pyfunc", onnx_export_path = None):
         """
         Logs the model as a pyfunc model along with wrapper class and signature for inference
         """
+        if export_format == "pyfunc":
+            # Save locally to log as artifacts
+            save_path = "hf_model"
+            if os.path.exists(save_path):
+                shutil.rmtree(save_path)  # Deletes the directory and its contents
+            model.save_pretrained(save_path)
+            tokenizer.save_pretrained(save_path)
 
-        # Save locally to log as artifacts
-        save_path = "hf_model"
-        if os.path.exists(save_path):
-            shutil.rmtree(save_path)  # Deletes the directory and its contents
-        model.save_pretrained(save_path)
-        tokenizer.save_pretrained(save_path)
+            config_path = "config"
+            artifacts = {
+                "hf_model": save_path,  # your HuggingFace model dir
+            }
 
-        config_path = "config"
-        artifacts = {
-            "hf_model": save_path,  # your HuggingFace model dir
-        }
+            # Log as PyFunc model with wrapped tokenizer + model
+            mlflow.pyfunc.log_model(
+                artifact_path="model",
+                python_model=LlmWrapper(context_window = cfg.context_window, device = cfg.inference_device), 
+                artifacts=artifacts,
+                code_path=["./Wrapper.py"],
+                signature=get_signature()
+            )
 
-        # Log as PyFunc model with wrapped tokenizer + model
-        mlflow.pyfunc.log_model(
-            artifact_path="model",
-            python_model=LlmWrapper(context_window = cfg.context_window, device = cfg.inference_device), 
-            artifacts=artifacts,
-            code_path=["./Wrapper.py"],
-            signature=get_signature()
-        )
+        elif export_format == "onnx":
+            mlflow.log_artifact(onnx_export_path, artifact_path="onnx_model")
+
 
     def resume(self):
         """
