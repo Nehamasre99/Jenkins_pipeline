@@ -12,7 +12,7 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from LlamaWrapper import Llama3bWrapper, get_signature, sanitize_tokenizer_config
+from Wrapper import LlmWrapper, get_signature
 from .device_config import cfg, mode, get_device
 
 class MLflowTracker:
@@ -112,9 +112,6 @@ class MLflowTracker:
         """
         Logs the model as a pyfunc model along with wrapper class and signature for inference
         """
-        #model = AutoModelForSeq2SeqLM.from_pretrained(cfg.trained_model_dir)
-        #tokenizer = AutoTokenizer.from_pretrained(cfg.trained_model_dir)
-        tokenizer = sanitize_tokenizer_config(tokenizer)
 
         # Save locally to log as artifacts
         save_path = "hf_model"
@@ -131,9 +128,9 @@ class MLflowTracker:
         # Log as PyFunc model with wrapped tokenizer + model
         mlflow.pyfunc.log_model(
             artifact_path="model",
-            python_model=Llama3bWrapper(context_window = cfg.context_window, device = cfg.inference_device), 
+            python_model=LlmWrapper(context_window = cfg.context_window, device = cfg.inference_device), 
             artifacts=artifacts,
-            code_path=["./LlamaWrapper.py"],
+            code_path=["./Wrapper.py"],
             signature=get_signature()
         )
 
