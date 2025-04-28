@@ -4,7 +4,9 @@ import yaml
 from .config_schema import LocalMLflowConfig, RemoteMLflowConfig
 
 # Define the absolute path to the config file
-config_path = os.path.join(os.path.dirname(__file__), 'mlflow_config.yaml')
+current_dir = os.path.dirname(__file__)          # This is mlops_sdk/
+parent_dir = os.path.abspath(os.path.join(current_dir, ".."))  # Go up one level
+config_path = os.path.join(parent_dir, 'mlflow_config.yaml')   # Now look for config in project root
 
 # Load the config file
 with open(config_path, "r") as f:
