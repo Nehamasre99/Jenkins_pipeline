@@ -1,8 +1,7 @@
-# mlflow_registry_manager.py
+# mlops_sdk/src/mlflow_registry_manager.py
 """
 Defines the class and provides APIs for registering ML models to the MLflow model registry
 """
-
 import mlflow
 from .device_config import cfg, mode
 

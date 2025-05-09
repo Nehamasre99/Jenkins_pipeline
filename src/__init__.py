@@ -1,4 +1,4 @@
-# mlops_sdk/__init__.py
+# mlops_sdk/src/__init__.py
 
 # Expose important modules or classes for easy access
 from .device_config import cfg, mode, get_device

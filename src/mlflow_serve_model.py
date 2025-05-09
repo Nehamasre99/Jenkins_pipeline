@@ -1,18 +1,28 @@
-# mlflow_serve_model.py
+# mlops_sdk/src/mlflow_serve_model.py
+
 import subprocess
 import requests
 import time
 
+class ModelServeManager:
 
-class MLflowModelServe:
-
-    def __init__(self, model_uri : str, gpu_flag : bool = False, ssh_user : str = "shrivatsan"):
+    def __init__(self, model_uri : str, mode :str = 'mlflow', gpu_flag : bool = False, ssh_user : str = "shrivatsan"):
         self.model_uri = model_uri
         self.gpu_flag = gpu_flag
         self.ssh_user = ssh_user
         self.server_ip = "10.10.1.45"
+        self.mode = mode
 
-    def serve_model(self, port: int = 5001, container_name: str = "mlflow_model_server"):
+    def serve(self):
+        if self.mode == 'mlflow':
+            self._serve_mlflow()
+        elif self.mode == 'triton':
+            self._prepare_triton_repo()
+            self._start_triton_container()
+        else:
+            raise ValueError("Unsupported mode. Choose from ['mlflow', 'triton'].")
+
+    def _serve_mlflow(self, port: int = 5001, container_name: str = "mlflow_model_server"):
         cmd_parts = [
         "docker run -d --rm",
         "--network=host",
@@ -90,5 +100,5 @@ class MLflowModelServe:
         raise TimeoutError("Model server did not become responsive in time.")
 
 
-def get_mlflow_model_serve(model_uri : str, gpu_flag : bool = False):
-    return MLflowModelServe(model_uri = model_uri, gpu_flag = gpu_flag)
+def get_model_serve(model_uri : str, gpu_flag : bool = False, mode : str = "mlflow", ssh_user : str = "shrivatsan"):
+    return ModelServeManager(model_uri = model_uri, gpu_flag = gpu_flag, mode = mode, ssh_user = ssh_user)

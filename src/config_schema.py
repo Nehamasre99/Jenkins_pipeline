@@ -1,4 +1,4 @@
-# config_schema.py
+# mlops_sdk/src/config_schema.py
 
 from pydantic import BaseModel, HttpUrl
 from typing import Optional, Literal

@@ -1,4 +1,4 @@
-# mlflow_tracker.py
+# mlops_sdk/src/mlflow_tracker.py
 """
 Defines the class and provides APIs for MLFlow experiment tracking and logging
 """
@@ -7,12 +7,12 @@ import os
 import sys
 import shutil
 import mlflow
-from Wrapper import LlmWrapper, get_signature
 from .device_config import cfg, mode
 
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",".."))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
+from Wrapper import LlmWrapper, get_signature
 
 class MLflowTracker:
     """
