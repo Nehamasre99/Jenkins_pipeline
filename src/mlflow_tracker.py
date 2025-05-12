@@ -112,6 +112,16 @@ class MLflowTracker:
         """
         mlflow.log_metrics(metrics, step=step)
 
+    def set_tags(self, tags: dict):
+        """
+        Sets one or more tags for the current MLflow run.
+
+        Args:
+            tags (dict): A dictionary of tag keys and their values.
+        """
+        for key, value in tags.items():
+            mlflow.set_tag(key, value)
+
     def log_model(self, model, tokenizer):
         """
         Logs the model as a pyfunc model along with wrapper class and signature for inference
