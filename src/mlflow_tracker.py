@@ -7,7 +7,7 @@ import os
 import sys
 import shutil
 import mlflow
-from .device_config import cfg, mode
+from device_config import load_config
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",".."))
 if parent_dir not in sys.path:
@@ -29,7 +29,7 @@ class MLflowTracker:
         self.run_id = None
         self.started = False
         self.ended = False
-
+        self.cfg, self.mode = load_config()
         if mlflow.active_run():
             raise RuntimeError(
                 "Another MLflow run is already active. "
@@ -50,40 +50,40 @@ class MLflowTracker:
             raise RuntimeError("start_run() has already been called.")
 
         # retrieve tracking_uri from mlflow_config.yaml and set it for the current run
-        mlflow.set_tracking_uri(str(cfg.tracking_url))
+        mlflow.set_tracking_uri(str(self.cfg.tracking_url))
         # retrieve experiment_name from mlflow_config.yaml and set it for the current run
-        mlflow.set_experiment(cfg.experiment_name)
+        mlflow.set_experiment(self.cfg.experiment_name)
 
-        if mode =="remote":
+        if self.mode =="remote":
             # set remote only environment variables
-            os.environ["MLFLOW_S3_ENDPOINT_URL"] = str(cfg.mlflow_s3_endpoint_url)
-            os.environ["AWS_ACCESS_KEY_ID"] = cfg.aws_access_key_id
-            os.environ["AWS_SECRET_ACCESS_KEY"] = cfg.aws_secret_access_key
+            os.environ["MLFLOW_S3_ENDPOINT_URL"] = str(self.cfg.mlflow_s3_endpoint_url)
+            os.environ["AWS_ACCESS_KEY_ID"] = self.cfg.aws_access_key_id
+            os.environ["AWS_SECRET_ACCESS_KEY"] = self.cfg.aws_secret_access_key
 
         # check if an experiment already exists with experiment_name
-        experiment = mlflow.get_experiment_by_name(cfg.experiment_name)
+        experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
 
         # if no experiment exists with experiment_name, create a new one
         if experiment is None:
-            if mode == "remote": # if mode is remote
-                mlflow.create_experiment(cfg.experiment_name, artifact_location=cfg.artifact_uri)
-            elif mode == "local": # if mode is local
-                mlflow.create_experiment(cfg.experiment_name)
+            if self.mode == "remote": # if mode is remote
+                mlflow.create_experiment(self.cfg.experiment_name, artifact_location=self.cfg.artifact_uri)
+            elif self.mode == "local": # if mode is local
+                mlflow.create_experiment(self.cfg.experiment_name)
 
-            print(f"Experiment '{cfg.experiment_name}' created.")
+            print(f"Experiment '{self.cfg.experiment_name}' created.")
             # update experiment variable with newly created experiment
-            experiment = mlflow.get_experiment_by_name(cfg.experiment_name)
+            experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
         # if experiment already exists with experiment_name, no action is needed
         else:
-            print(f"Experiment '{cfg.experiment_name}' already exists with ID: {experiment.experiment_id}")
+            print(f"Experiment '{self.cfg.experiment_name}' already exists with ID: {experiment.experiment_id}")
         # define kwargs for creating a new run
         run_kwargs = {
             "experiment_id": experiment.experiment_id,
-            "log_system_metrics": cfg.log_system_metrics 
+            "log_system_metrics": self.cfg.log_system_metrics 
         }
-        if cfg.run_name:
+        if self.cfg.run_name:
             # if run_name is provided by user in mlflow_config.yaml, add it to kwargs
-            run_kwargs["run_name"] = cfg.run_name
+            run_kwargs["run_name"] = self.cfg.run_name
 
         if not mlflow.active_run():
             # start a new run if one does not already exist with the generated kwargs
@@ -130,8 +130,8 @@ class MLflowTracker:
         # Log as PyFunc model with wrapped tokenizer + model
         mlflow.pyfunc.log_model(
             artifact_path="model",
-            python_model=LlmWrapper(context_window = cfg.context_window,
-            device = cfg.inference_device),
+            python_model=LlmWrapper(context_window = self.cfg.context_window,
+            device = self.cfg.inference_device),
             artifacts=artifacts,
             code_path=["./Wrapper.py"],
             signature=get_signature()

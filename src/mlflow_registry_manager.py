@@ -3,7 +3,6 @@
 Defines the class and provides APIs for registering ML models to the MLflow model registry
 """
 import mlflow
-from .device_config import cfg, mode
 
 
 class MLflowRegistryManager:
