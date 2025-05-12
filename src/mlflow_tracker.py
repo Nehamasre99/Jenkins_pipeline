@@ -7,7 +7,7 @@ import os
 import sys
 import shutil
 import mlflow
-from device_config import load_config
+import device_config
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",".."))
 if parent_dir not in sys.path:
@@ -26,10 +26,11 @@ class MLflowTracker:
 
     def __init__(self):
         # initialize run_id variable to None. Will be updated after calling start_run()
+        self.experiment = None
         self.run_id = None
         self.started = False
         self.ended = False
-        self.cfg, self.mode = load_config()
+        self.cfg, self.mode = device_config.load_config()
         if mlflow.active_run():
             raise RuntimeError(
                 "Another MLflow run is already active. "
@@ -41,30 +42,21 @@ class MLflowTracker:
             print("Auto-ending active MLflow run.")
             mlflow.end_run()
 
-    def start_run(self):
+    def _create_experiment(self):
         """
-        Creates MLFLow experiment with given experiment_name and starts a run in that experiment
+        Internal function to create a new experiment using the name provided in config file
         """
-
-        if self.started:
-            raise RuntimeError("start_run() has already been called.")
 
         # retrieve tracking_uri from mlflow_config.yaml and set it for the current run
         mlflow.set_tracking_uri(str(self.cfg.tracking_url))
         # retrieve experiment_name from mlflow_config.yaml and set it for the current run
         mlflow.set_experiment(self.cfg.experiment_name)
 
-        if self.mode =="remote":
-            # set remote only environment variables
-            os.environ["MLFLOW_S3_ENDPOINT_URL"] = str(self.cfg.mlflow_s3_endpoint_url)
-            os.environ["AWS_ACCESS_KEY_ID"] = self.cfg.aws_access_key_id
-            os.environ["AWS_SECRET_ACCESS_KEY"] = self.cfg.aws_secret_access_key
-
         # check if an experiment already exists with experiment_name
-        experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
+        self.experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
 
         # if no experiment exists with experiment_name, create a new one
-        if experiment is None:
+        if self.experiment is None:
             if self.mode == "remote": # if mode is remote
                 mlflow.create_experiment(self.cfg.experiment_name, artifact_location=self.cfg.artifact_uri)
             elif self.mode == "local": # if mode is local
@@ -72,13 +64,29 @@ class MLflowTracker:
 
             print(f"Experiment '{self.cfg.experiment_name}' created.")
             # update experiment variable with newly created experiment
-            experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
+            self.experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
         # if experiment already exists with experiment_name, no action is needed
         else:
-            print(f"Experiment '{self.cfg.experiment_name}' already exists with ID: {experiment.experiment_id}")
+            print(f"Experiment '{self.cfg.experiment_name}' already exists with ID: {self.experiment.experiment_id}")
+
+    def _set_remote_env_vars(self):
+        """
+        Internal function to set remote environment variables for 
+        MLflow Tracking and minIO servers from mlflow_config.yaml
+        """
+        # set remote only environment variables
+        os.environ["MLFLOW_S3_ENDPOINT_URL"] = str(self.cfg.mlflow_s3_endpoint_url)
+        os.environ["AWS_ACCESS_KEY_ID"] = self.cfg.aws_access_key_id
+        os.environ["AWS_SECRET_ACCESS_KEY"] = self.cfg.aws_secret_access_key
+
+    def _create_run(self):
+        """
+        Starts a run and uses the name from mlflow_config.yaml if provided
+        """
+
         # define kwargs for creating a new run
         run_kwargs = {
-            "experiment_id": experiment.experiment_id,
+            "experiment_id": self.experiment.experiment_id,
             "log_system_metrics": self.cfg.log_system_metrics 
         }
         if self.cfg.run_name:
@@ -93,6 +101,24 @@ class MLflowTracker:
         self.started = True
         self.ended = False
 
+    def start_run(self):
+        """
+        Creates MLFLow experiment with given experiment_name and starts a run in that experiment
+        """
+        # Check if start_run() has already been called. 
+        if self.started:
+            raise RuntimeError("start_run() has already been called. use resume() instead")
+
+        # set environemnt vars for Mlflow tracking and minIO servers
+        if self.mode =="remote":
+            self._set_remote_env_vars()
+
+        # check if experiment exists and create a new one if needed    
+        self._create_experiment()
+
+        # Check for active runs and start a new run
+        self._create_run()
+
     def log_hparams(self, params: dict):
         """
         Logs one or more hyperparameters to MLflow
@@ -100,7 +126,11 @@ class MLflowTracker:
         Args:
             params (dict): A dictionary of parameter names and their values.
         """
-        mlflow.log_params(params)
+        try:
+            mlflow.log_params(params)
+        except Exception as e:
+            raise RuntimeError(f"Failed to log hyperparameters: {e}")
+
 
     def log_metrics(self, metrics: dict, step: int = None):
         """
