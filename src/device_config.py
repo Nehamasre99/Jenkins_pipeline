@@ -51,12 +51,12 @@ def get_device(force_cpu: Optional[bool] = None) -> str:
         return "cpu" if force_cpu else ("cuda" if torch.cuda.is_available() else "cpu")
 
     # Lazy-load config to read force_cpu
-    cfg = load_config()
+    cfg, mode = load_config()
     return "cpu" if cfg.force_cpu else ("cuda" if torch.cuda.is_available() else "cpu")
 
 def get_mode() -> str:
 
     # Lazy-load config to read mode
-    cfg = load_config()
-    return cfg.mode
+    cfg, mode = load_config()
+    return mode
 
