@@ -152,7 +152,7 @@ class MLflowTracker:
         for key, value in tags.items():
             mlflow.set_tag(key, value)
 
-    def log_model(self, model, tokenizer):
+    def log_model(self, model, tokenizer, safe_serialization : bool = True):
         """
         Logs the model as a pyfunc model along with wrapper class and signature for inference
         """
@@ -160,7 +160,7 @@ class MLflowTracker:
         save_path = "hf_model"
         if os.path.exists(save_path):
             shutil.rmtree(save_path)  # Deletes the directory and its contents
-        model.save_pretrained(save_path,  safe_serialization=False)
+        model.save_pretrained(save_path, safe_serialization = safe_serialization)
         tokenizer.save_pretrained(save_path)
 
         artifacts = {
