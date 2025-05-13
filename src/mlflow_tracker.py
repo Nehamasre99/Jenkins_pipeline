@@ -5,6 +5,7 @@ Defines the class and provides APIs for MLFlow experiment tracking and logging
 
 import os
 import sys
+import weakref
 import shutil
 import mlflow
 import device_config
@@ -36,8 +37,9 @@ class MLflowTracker:
                 "Another MLflow run is already active. "
                 "Please call end() on the existing tracker instance before creating a new one."
             )
+        self.finalizer = weakref.finalize(self, self._finalize_run)
 
-    def __del__(self):
+    def _finalize_run(self):
         if not self.ended and mlflow.active_run():
             print("Auto-ending active MLflow run.")
             mlflow.end_run()
@@ -185,9 +187,11 @@ class MLflowTracker:
         """
         if not self.started:
             raise RuntimeError("Cannot call resume() before start_run() has been called.")
-        if not mlflow.active_run():
-            mlflow.start_run(run_id=self.run_id)
-            self.ended = False
+        if mlflow.active_run():
+            raise RuntimeError("Cannot call resume() while there is an active mlflow run.")            
+
+        mlflow.start_run(run_id=self.run_id)
+        self.ended = False
 
     def end(self):
         """
