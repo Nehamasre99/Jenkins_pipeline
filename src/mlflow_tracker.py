@@ -53,10 +53,10 @@ class MLflowTracker:
         mlflow.set_tracking_uri(str(self.cfg.tracking_url))
 
         # check if an experiment already exists with experiment_name
-        self.experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
+        experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
 
         # if no experiment exists with experiment_name, create a new one
-        if self.experiment is None:
+        if experiment is None:
             if self.mode == "remote": # if mode is remote
                 mlflow.create_experiment(self.cfg.experiment_name, artifact_location=self.cfg.artifact_uri)
             elif self.mode == "local": # if mode is local
@@ -64,11 +64,15 @@ class MLflowTracker:
 
             print(f"Experiment '{self.cfg.experiment_name}' created.")
             # update experiment variable with newly created experiment
-            self.experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
+            experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
+
         # if experiment already exists with experiment_name, no action is needed
         else:
-            print(f"Experiment '{self.cfg.experiment_name}' already exists with ID: {self.experiment.experiment_id}")
+            print(f"Experiment '{self.cfg.experiment_name}' already exists with ID: {experiment.experiment_id}")
         
+        # set the experiment attribute at the end of the fucntion to avoid any intermediate
+        # states where the object would return None
+        self.experiment = experiment
         # retrieve experiment_name from mlflow_config.yaml and set it for the current run
         mlflow.set_experiment(self.cfg.experiment_name)
 
@@ -86,7 +90,6 @@ class MLflowTracker:
         """
         Starts a run and uses the name from mlflow_config.yaml if provided
         """
-
         # define kwargs for creating a new run
         run_kwargs = {
             "experiment_id": self.experiment.experiment_id,
@@ -96,13 +99,15 @@ class MLflowTracker:
             # if run_name is provided by user in mlflow_config.yaml, add it to kwargs
             run_kwargs["run_name"] = self.cfg.run_name
 
-        if not mlflow.active_run():
-            # start a new run if one does not already exist with the generated kwargs
-            mlflow.start_run(**run_kwargs)
+        # start a new run with the generated kwargs
+        mlflow.start_run(**run_kwargs)
 
         self.run_id = mlflow.active_run().info.run_id # retrieve current run_id and store it
         self.started = True
         self.ended = False
+
+    def call_create_experiment(self):
+        return self._create_experiment()
 
     def start_run(self):
         """
