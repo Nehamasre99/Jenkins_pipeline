@@ -3,19 +3,21 @@
 Module containing unit tests for mlflow_tracker. Usage: pytest mlflow_tracker.py
 """
 
-
 import sys
 import os
-import pytest
-from unittest.mock import patch
 import importlib
+from unittest.mock import patch
 from types import SimpleNamespace
+import pytest
 
 # Add project root to PYTHONPATH
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+# Global test constants
+MOCK_EXPERIMENT_ID = "1234"
+MOCK_RUN_ID = "run_xyz"
 
 # A pytest fixture is a function that sets up preconditions for tests and returns objects needed by the tests.
 # This one creates a mocked version of the MLflowTracker class with dependencies stubbed out.
@@ -26,7 +28,6 @@ if project_root not in sys.path:
 # It registers this function (patched_mlflow_tracker) as a fixture provider — a reusable "test dependency" that can be injected into any test function.
 # when patched_mlflow_tracker it can be called using patched_mlflow_tracker to give the return value
 # which is the MlflowTracker object with mocked load_config
-
 
 @pytest.fixture
 def patched_mlflow_tracker(mocker):
@@ -72,7 +73,7 @@ def patched_mlflow_tracker(mocker):
 # become no ops stubs
 # patch where a function is used, not defined (hence patching inside mlflow_trakcer.py file)
 
-#  mocker.patch("mlflow_tracker.mlflow.set_tracking_uri") replaces the actual mlflow.set_tracking_uri
+# mocker.patch("mlflow_tracker.mlflow.set_tracking_uri") replaces the actual mlflow.set_tracking_uri
 # function inside mlflow_tracker.py with a Mock object.
 # That mock function does nothing (i.e., it doesn't try to write to a  server, etc.), but:
 # It tracks if it was called
@@ -93,7 +94,8 @@ def setup_start_run(mocker, patched_mlflow_tracker):
         mocker.patch("mlflow_tracker.mlflow.set_experiment")
 
         mock_create_experiment = mocker.patch("mlflow_tracker.mlflow.create_experiment")
-        mock_experiment = mocker.Mock(experiment_id = "1234")
+        mock_experiment = mocker.Mock()
+        mock_experiment.experiment_id = MOCK_EXPERIMENT_ID
 
         if experiment_exists:
             # Simulate experiment exists
@@ -105,36 +107,55 @@ def setup_start_run(mocker, patched_mlflow_tracker):
             # Simulate experiment does not exist
             mock_get_experiment = mocker.patch(
                 "mlflow_tracker.mlflow.get_experiment_by_name",
-                side_effect = [None, mock_experiment]
+                side_effect = [None, mock_experiment, mock_experiment]
             )
 
         mock_start_run = mocker.patch("mlflow_tracker.mlflow.start_run")
 
         mock_active_run = mocker.Mock()
-        mock_active_run.info.run_id = "run_xyz"
+        mock_active_run.info.run_id = MOCK_RUN_ID
 
-        mocker.patch("mlflow_tracker.mlflow.active_run", side_effect=[None, mock_active_run, mock_active_run])
+        # active_run is called 3 times and returns None first time, and a mock_active_run object 2 times
+        # use side_effect list when the same function returns different objects on different calls
+        # if it returns the same object on every call, use return_value = <object_name>
+        mocker.patch("mlflow_tracker.mlflow.active_run", side_effect=[None, mock_active_run])
 
         tracker = patched_mlflow_tracker()
+
         return tracker, mock_create_experiment, mock_get_experiment, mock_start_run, mock_active_run
 
     return _setup
 
+
 def check_remote_env_set(tracker):
     if tracker.mode == "remote":
-        assert os.environ["MLFLOW_S3_ENDPOINT_URL"] == "http://1.1.1.1:9000"
-        assert os.environ["AWS_ACCESS_KEY_ID"] == "admin"
-        assert os.environ["AWS_SECRET_ACCESS_KEY"] == "pass"
+        assert os.environ["MLFLOW_S3_ENDPOINT_URL"] == tracker.cfg.mlflow_s3_endpoint_url
+        assert os.environ["AWS_ACCESS_KEY_ID"] == tracker.cfg.aws_access_key_id
+        assert os.environ["AWS_SECRET_ACCESS_KEY"] == tracker.cfg.aws_secret_access_key
 
     elif tracker.mode == "local":
         assert "MLFLOW_S3_ENDPOINT_URL" not in os.environ
         assert "AWS_ACCESS_KEY_ID" not in os.environ
         assert "AWS_SECRET_ACCESS_KEY" not in os.environ
 
+
+def generate_run_kwargs(tracker):
+    run_kwargs = {
+    "experiment_id": tracker.experiment.experiment_id,
+    "log_system_metrics": tracker.cfg.log_system_metrics 
+    }
+    if tracker.cfg.run_name:
+        run_kwargs["run_name"] = tracker.cfg.run_name
+    return run_kwargs
+
+
 def test_start_run_sunny_day_remote(mocker, setup_start_run):
 
     # use setup_start_run fixture to get the mock objects for testing
     tracker, mock_create_experiment, mock_get_experiment, mock_start_run, mock_active_run = setup_start_run(experiment_exists = False)
+
+    tracker.call_create_experiment()
+    run_kwargs = generate_run_kwargs(tracker)
     
     with patch.dict(os.environ, {}, clear=True):
     # start run using tracker.start_run()
@@ -144,13 +165,16 @@ def test_start_run_sunny_day_remote(mocker, setup_start_run):
         mock_get_experiment.assert_called_with(tracker.cfg.experiment_name)
         mock_create_experiment.assert_called_once_with(tracker.cfg.experiment_name, artifact_location=tracker.cfg.artifact_uri)
 
+        assert tracker.experiment.experiment_id == MOCK_EXPERIMENT_ID
+
         check_remote_env_set(tracker)
 
-        assert mock_start_run.called_once()
+        mock_start_run.assert_called_once_with(**run_kwargs)
 
-        assert tracker.run_id == "run_xyz"
+        assert tracker.run_id == MOCK_RUN_ID
         assert tracker.started
         assert not tracker.ended
+
 
 def test_start_run_sunny_day_local(mocker, setup_start_run):
 
@@ -159,6 +183,8 @@ def test_start_run_sunny_day_local(mocker, setup_start_run):
     
     # override mode to local
     tracker.mode = "local"
+    tracker.call_create_experiment()
+    run_kwargs = generate_run_kwargs(tracker)
 
     with patch.dict(os.environ, {}, clear=True):
     # start run using tracker.start_run()
@@ -168,26 +194,55 @@ def test_start_run_sunny_day_local(mocker, setup_start_run):
         mock_get_experiment.assert_called_with(tracker.cfg.experiment_name)
         mock_create_experiment.assert_called_once_with(tracker.cfg.experiment_name)
 
+        assert tracker.experiment.experiment_id == MOCK_EXPERIMENT_ID
+
         check_remote_env_set(tracker)
 
-        assert mock_start_run.called_once()
+        mock_start_run.assert_called_once_with(**run_kwargs)
 
-        assert tracker.run_id == "run_xyz"
+        assert tracker.run_id == MOCK_RUN_ID
         assert tracker.started
         assert not tracker.ended
+
 
 def test_start_run_already_started(mocker, setup_start_run):
 
     # use setup_start_run fixture to get the mock objects for testing
-    tracker, mock_create_experiment, mock_get_experiment, mock_start_run, mock_active_run = setup_start_run(experiment_exists = False)
+    tracker, mock_create_experiment, mock_get_experiment, mock_start_run, mock_active_run = setup_start_run(experiment_exists = True)
     
     # set started to true to mimick an active run
     tracker.started = True
 
+    # Check for runtime error because start_run() has been called for the second time
     with pytest.raises(RuntimeError, match="start_run\\(\\) has already been called. use resume\\(\\) instead"):
         tracker.start_run()
 
 
+def test_start_run_experiment_exists(mocker, setup_start_run):
+
+    # use setup_start_run fixture to get the mock objects for testing
+    tracker, mock_create_experiment, mock_get_experiment, mock_start_run, mock_active_run = setup_start_run(experiment_exists = True)
+    
+    tracker.call_create_experiment()
+    run_kwargs = generate_run_kwargs(tracker)
+    
+    with patch.dict(os.environ, {}, clear=True):
+    # start run using tracker.start_run()
+        tracker.start_run()
+
+        # Verifies that the start_run() correctly updates the internal state.
+        mock_get_experiment.assert_called_with(tracker.cfg.experiment_name)
+        mock_create_experiment.assert_not_called()
+
+        assert tracker.experiment.experiment_id == MOCK_EXPERIMENT_ID
+
+        check_remote_env_set(tracker)
+
+        mock_start_run.assert_called_once_with(**run_kwargs)
+
+        assert tracker.run_id == MOCK_RUN_ID
+        assert tracker.started
+        assert not tracker.ended
 
 
 def test_log_hparams(patched_mlflow_tracker, mocker):
@@ -223,6 +278,7 @@ def test_log_metrics_with_step(patched_mlflow_tracker, mocker):
     tracker.log_metrics(metrics, step=5)
     mock_log_metrics.assert_called_once_with(metrics, step = 5)
 
+
 def test_log_metrics_without_step(patched_mlflow_tracker, mocker):
 
     mocker.patch("mlflow_tracker.weakref.finalize")  # disables finalization
@@ -236,6 +292,7 @@ def test_log_metrics_without_step(patched_mlflow_tracker, mocker):
 
     tracker.log_metrics(metrics)
     mock_log_metrics.assert_called_once_with(metrics, step = None)
+
 
 def test_log_model(patched_mlflow_tracker, mocker):
 
@@ -281,6 +338,7 @@ def test_log_model(patched_mlflow_tracker, mocker):
         code_path=["./Wrapper.py"],
         signature=dummy_signature
     )
+
 
 def test_end_active_run(patched_mlflow_tracker, mocker):
     # Create a mock active run
@@ -342,6 +400,7 @@ def test_resume_before_start_run(patched_mlflow_tracker, mocker):
 
     mock_resume.assert_not_called()
 
+
 def test_resume_with_active_run(patched_mlflow_tracker, mocker):
 
     mocker.patch("mlflow_tracker.weakref.finalize")  # disables finalization
@@ -367,7 +426,7 @@ def test_resume_without_active_run(patched_mlflow_tracker, mocker):
 
     mocker.patch("mlflow_tracker.weakref.finalize")  # disables finalization
     mock_active_run = mocker.Mock()
-    mocker.patch("mlflow_tracker.mlflow.active_run", return_value    = None)
+    mocker.patch("mlflow_tracker.mlflow.active_run", return_value = None)
 
     mock_resume = mocker.patch("mlflow_tracker.mlflow.start_run")
 
