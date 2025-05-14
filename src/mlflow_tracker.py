@@ -51,8 +51,6 @@ class MLflowTracker:
 
         # retrieve tracking_uri from mlflow_config.yaml and set it for the current run
         mlflow.set_tracking_uri(str(self.cfg.tracking_url))
-        # retrieve experiment_name from mlflow_config.yaml and set it for the current run
-        mlflow.set_experiment(self.cfg.experiment_name)
 
         # check if an experiment already exists with experiment_name
         self.experiment = mlflow.get_experiment_by_name(self.cfg.experiment_name)
@@ -70,6 +68,9 @@ class MLflowTracker:
         # if experiment already exists with experiment_name, no action is needed
         else:
             print(f"Experiment '{self.cfg.experiment_name}' already exists with ID: {self.experiment.experiment_id}")
+        
+        # retrieve experiment_name from mlflow_config.yaml and set it for the current run
+        mlflow.set_experiment(self.cfg.experiment_name)
 
     def _set_remote_env_vars(self):
         """
