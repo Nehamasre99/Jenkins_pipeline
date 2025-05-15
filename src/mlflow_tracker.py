@@ -13,6 +13,7 @@ import device_config
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",".."))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
+
 from Wrapper import LlmWrapper, get_signature
 
 class MLflowTracker:
@@ -41,7 +42,7 @@ class MLflowTracker:
 
     def _finalize_run(self):
         if not self.ended and mlflow.active_run():
-            print("Auto-ending active MLflow run.")
+            print("Auto-ending active MLflow run.") 
             mlflow.end_run()
 
     def _create_experiment(self):
