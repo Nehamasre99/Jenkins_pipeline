@@ -139,7 +139,7 @@ class MLflowTracker:
             params (dict): A dictionary of parameter names and their values.
         """
 
-        if self.ended:
+        if self.ended or not self.started:
             raise RuntimeError("No active run. Call this function after start_run() or resume()")
 
         mlflow.log_params(params)
@@ -153,7 +153,7 @@ class MLflowTracker:
             metrics (dict): A dictionary of metric names and their float values.
             step (int, optional): An integer step index. Default is None.
         """
-        if self.ended:
+        if self.ended or not self.started:
             raise RuntimeError("No active run. Call this function after start_run() or resume()")
         mlflow.log_metrics(metrics, step=step)
 
@@ -165,7 +165,7 @@ class MLflowTracker:
         Args:
             tags (dict): A dictionary of tag keys and their values.
         """
-        if self.ended:
+        if self.ended or not self.started:
             raise RuntimeError("No active run. Call this function after start_run() or resume()")
         for key, value in tags.items():
             mlflow.set_tag(key, value)
@@ -175,9 +175,9 @@ class MLflowTracker:
         Logs the model as a pyfunc model along with wrapper class and signature for inference
         """
         # Save locally to log as artifacts
-        if self.ended:
+        if self.ended or not self.started:
             raise RuntimeError("No active run. Call this function after start_run() or resume()")
-            
+
         save_path = "hf_model"
         if os.path.exists(save_path):
             shutil.rmtree(save_path)  # Deletes the directory and its contents
@@ -217,7 +217,7 @@ class MLflowTracker:
         Checks for an active run and ends it if one is available
         Must call after either init() or resume() to end the active run
         """
-        if mlflow.active_run():
+        if mlflow.active_run() and self.started:
             mlflow.end_run()
             self.ended = True
         else:
