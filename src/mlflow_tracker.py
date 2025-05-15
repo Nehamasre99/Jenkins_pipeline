@@ -107,8 +107,10 @@ class MLflowTracker:
         self.started = True
         self.ended = False
 
+
     def call_create_experiment(self):
         return self._create_experiment()
+
 
     def start_run(self):
         """
@@ -128,6 +130,7 @@ class MLflowTracker:
         # Check for active runs and start a new run
         self._create_run()
 
+
     def log_hparams(self, params: dict):
         """
         Logs one or more hyperparameters to MLflow
@@ -135,10 +138,11 @@ class MLflowTracker:
         Args:
             params (dict): A dictionary of parameter names and their values.
         """
-        try:
-            mlflow.log_params(params)
-        except Exception as e:
-            raise RuntimeError(f"Failed to log hyperparameters: {e}")
+
+        if self.ended:
+            raise RuntimeError("No active run. Call this function after start_run() or resume()")
+
+        mlflow.log_params(params)
 
 
     def log_metrics(self, metrics: dict, step: int = None):
@@ -149,7 +153,10 @@ class MLflowTracker:
             metrics (dict): A dictionary of metric names and their float values.
             step (int, optional): An integer step index. Default is None.
         """
+        if self.ended:
+            raise RuntimeError("No active run. Call this function after start_run() or resume()")
         mlflow.log_metrics(metrics, step=step)
+
 
     def set_tags(self, tags: dict):
         """
@@ -158,6 +165,8 @@ class MLflowTracker:
         Args:
             tags (dict): A dictionary of tag keys and their values.
         """
+        if self.ended:
+            raise RuntimeError("No active run. Call this function after start_run() or resume()")
         for key, value in tags.items():
             mlflow.set_tag(key, value)
 
@@ -166,6 +175,9 @@ class MLflowTracker:
         Logs the model as a pyfunc model along with wrapper class and signature for inference
         """
         # Save locally to log as artifacts
+        if self.ended:
+            raise RuntimeError("No active run. Call this function after start_run() or resume()")
+            
         save_path = "hf_model"
         if os.path.exists(save_path):
             shutil.rmtree(save_path)  # Deletes the directory and its contents
