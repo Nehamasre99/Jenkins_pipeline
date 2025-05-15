@@ -325,7 +325,8 @@ def test_log_model_saved_folder_exists(patched_mlflow_tracker, mocker):
 
     # creater MLflowTracker() instance
     tracker = patched_mlflow_tracker()
-
+    # Simulate start_run() already called
+    tracker.started = True
     # Call the method under test
     tracker.log_model(mock_model, mock_tokenizer, safe_serialization=True)
 
@@ -373,6 +374,7 @@ def test_log_model_no_saved_folder(patched_mlflow_tracker, mocker):
 
     # creater MLflowTracker() instance
     tracker = patched_mlflow_tracker()
+    tracker.started = True
 
     # Call the method under test
     tracker.log_model(mock_model, mock_tokenizer, safe_serialization=True)
@@ -405,7 +407,6 @@ def test_end_active_run(patched_mlflow_tracker, mocker):
     # Create the tracker
     tracker = patched_mlflow_tracker()
     tracker.started = True
-
     # Call end and assert
     tracker.end()
 
@@ -414,10 +415,8 @@ def test_end_active_run(patched_mlflow_tracker, mocker):
     mock_end_run.assert_called_once()
 
 
-def test_end_no_active_run(patched_mlflow_tracker, mocker):
-
-    
-    # using return value = None makes it so that any number of calls tp mlflow.active_run() return None
+def test_end_no_active_run(patched_mlflow_tracker, mocker):  
+    # using return value = None makes it so that any number of calls to mlflow.active_run() return None
     # Here active_run() is called thrice - in __init__ , end() and __del__ and should be returning None in all cases
     # side_effect = [] is used when the return values are different for different calls to the function
 
