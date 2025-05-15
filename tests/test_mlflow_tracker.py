@@ -18,6 +18,9 @@ if project_root not in sys.path:
 # Global test constants
 MOCK_EXPERIMENT_ID = "1234"
 MOCK_RUN_ID = "run_xyz"
+MOCK_SAVE_PATH = "hf_model"
+MOCK_ARTIFACT_PATH = "model"
+MOCK_WRAPPER_PATH = "./Wrapper.py"
 
 # A pytest fixture is a function that sets up preconditions for tests and returns objects needed by the tests.
 # This one creates a mocked version of the MLflowTracker class with dependencies stubbed out.
@@ -294,14 +297,14 @@ def test_log_metrics_without_step(patched_mlflow_tracker, mocker):
     mock_log_metrics.assert_called_once_with(metrics, step = None)
 
 
-def test_log_model(patched_mlflow_tracker, mocker):
+def test_log_model_saved_folder_exists(patched_mlflow_tracker, mocker):
 
     mocker.patch("mlflow_tracker.weakref.finalize")  # disables finalization
     mock_model = mocker.Mock()
     mock_tokenizer = mocker.Mock()
 
     mocker.patch("mlflow_tracker.os.path.exists", return_value = True)
-    mocker.patch("mlflow_tracker.shutil.rmtree")
+    mock_remove_dir = mocker.patch("mlflow_tracker.shutil.rmtree")
 
     # Mock save pretrained functions
     # Reason we are creating mock objects and not mocker.patch is because mock_model and 
@@ -326,16 +329,66 @@ def test_log_model(patched_mlflow_tracker, mocker):
     # Call the method under test
     tracker.log_model(mock_model, mock_tokenizer, safe_serialization=True)
 
+    mock_remove_dir.assert_called_once_with(MOCK_SAVE_PATH)
+
     # Assert save_pretrained was called correctly
-    mock_model.save_pretrained.assert_called_once_with("hf_model", safe_serialization=True)
-    mock_tokenizer.save_pretrained.assert_called_once_with("hf_model")
+    mock_model.save_pretrained.assert_called_once_with(MOCK_SAVE_PATH, safe_serialization=True)
+    mock_tokenizer.save_pretrained.assert_called_once_with(MOCK_SAVE_PATH)
 
     # Assert log_model was called with correct arguments
     mock_log_model.assert_called_once_with(
-        artifact_path="model",
+        artifact_path=MOCK_ARTIFACT_PATH,
         python_model=mock_llm_wrapper,
-        artifacts={"hf_model": "hf_model"},
-        code_path=["./Wrapper.py"],
+        artifacts={MOCK_SAVE_PATH: MOCK_SAVE_PATH},
+        code_path=[MOCK_WRAPPER_PATH],
+        signature=dummy_signature
+    )
+
+
+def test_log_model_no_saved_folder(patched_mlflow_tracker, mocker):
+
+    mocker.patch("mlflow_tracker.weakref.finalize")  # disables finalization
+    mock_model = mocker.Mock()
+    mock_tokenizer = mocker.Mock()
+
+    mocker.patch("mlflow_tracker.os.path.exists", return_value = False)
+    mock_remove_dir = mocker.patch("mlflow_tracker.shutil.rmtree")
+
+    # Mock save pretrained functions
+    # Reason we are creating mock objects and not mocker.patch is because mock_model and 
+    # mock_tokenizer are already mock objects. mocker.patch() is only for real fucntions
+    # for ex mlflow.pyfunc.log_model()
+    mock_model.save_pretrained = mocker.Mock()
+    mock_tokenizer.save_pretrained = mocker.Mock()
+
+
+    # Patch get_signature
+    dummy_signature = mocker.Mock()
+    mocker.patch("mlflow_tracker.get_signature", return_value=dummy_signature)
+
+    mock_llm_wrapper = mocker.Mock()
+    mocker.patch("mlflow_tracker.LlmWrapper", return_value=mock_llm_wrapper)
+
+    mock_log_model = mocker.patch("mlflow_tracker.mlflow.pyfunc.log_model")
+
+    # creater MLflowTracker() instance
+    tracker = patched_mlflow_tracker()
+
+    # Call the method under test
+    tracker.log_model(mock_model, mock_tokenizer, safe_serialization=True)
+
+    mock_remove_dir.assert_not_called()
+
+    # Assert save_pretrained was called correctly
+    mock_model.save_pretrained.assert_called_once_with(MOCK_SAVE_PATH, safe_serialization=True)
+    mock_tokenizer.save_pretrained.assert_called_once_with(MOCK_SAVE_PATH)
+
+    # Assert log_model was called with correct arguments
+    mock_log_model.assert_called_once_with(
+        artifact_path=MOCK_ARTIFACT_PATH,
+        python_model=mock_llm_wrapper,
+        artifacts={MOCK_SAVE_PATH: MOCK_SAVE_PATH},
+        code_path=[MOCK_WRAPPER_PATH],
         signature=dummy_signature
     )
 
@@ -343,7 +396,7 @@ def test_log_model(patched_mlflow_tracker, mocker):
 def test_end_active_run(patched_mlflow_tracker, mocker):
     # Create a mock active run
     mock_active_run = mocker.Mock()
-    mock_active_run.info.run_id = "run_xyz"
+    mock_active_run.info.run_id = MOCK_RUN_ID
 
     mocker.patch("mlflow_tracker.weakref.finalize")  # disables finalization
     mocker.patch("mlflow_tracker.mlflow.active_run", side_effect = [None, mock_active_run])
@@ -381,7 +434,6 @@ def test_end_no_active_run(patched_mlflow_tracker, mocker):
     with pytest.raises(RuntimeError, match="Cannot call end\\(\\) before start_run\\(\\) or resume\\(\\) has been called."):
         tracker.end()
 
-
     mock_end_run.assert_not_called()
 
 
@@ -393,7 +445,7 @@ def test_resume_before_start_run(patched_mlflow_tracker, mocker):
 
     # Create the tracker instance
     tracker = patched_mlflow_tracker()
-    tracker.run_id = "xyz"
+    tracker.run_id = MOCK_RUN_ID
 
     with pytest.raises(RuntimeError, match="Cannot call resume\\(\\) before start_run\\(\\) has been called."):
         tracker.resume()
@@ -414,7 +466,7 @@ def test_resume_with_active_run(patched_mlflow_tracker, mocker):
     # Create the tracker instance
     tracker = patched_mlflow_tracker()
     tracker.started = True
-    tracker.run_id = "xyz"
+    tracker.run_id = MOCK_RUN_ID
 
     with pytest.raises(RuntimeError, match="Cannot call resume\\(\\) while there is an active mlflow run."):
         tracker.resume()
@@ -432,12 +484,12 @@ def test_resume_without_active_run(patched_mlflow_tracker, mocker):
 
     # Create the tracker instance
     tracker = patched_mlflow_tracker()
+    # Simulate scenario where prior run had been started with start_run() and is now ended
     tracker.started = True
-    tracker.run_id = "xyz"
+    tracker.run_id = MOCK_RUN_ID
     tracker.ended = True
 
     tracker.resume()
 
     mock_resume.assert_called_once()
     assert not tracker.ended
-
