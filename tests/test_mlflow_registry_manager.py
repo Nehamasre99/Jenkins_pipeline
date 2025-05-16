@@ -32,7 +32,6 @@ def patched_mlflow_registry_manager(mocker):
 
 
 def test_register(patched_mlflow_registry_manager, mocker):
-
 	mock_model = mocker.Mock()
 	mock_register_model = mocker.patch("mlflow_registry_manager.mlflow.register_model", return_value = mock_model)
 	mock_model.version = MOCK_VERSION
@@ -46,3 +45,6 @@ def test_register(patched_mlflow_registry_manager, mocker):
 	assert version == MOCK_VERSION
 
 	mock_register_model.assert_called_once_with(model_uri=model_uri, name = MOCK_REGISTRY_NAME)
+
+
+def test_set_model_version_tags(patched_mlflow_registry_manager, mocker):

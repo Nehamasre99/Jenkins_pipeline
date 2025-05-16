@@ -30,3 +30,6 @@ class MLflowRegistryManager:
 
 def get_registry_manager(mlflow_registry_name : str):
     return MLflowRegistryManager(mlflow_registry_name = mlflow_registry_name)
+
+
+

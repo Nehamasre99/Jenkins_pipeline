@@ -400,7 +400,7 @@ def test_end_active_run(patched_mlflow_tracker, mocker):
     mock_active_run = mocker.Mock()
     mock_active_run.info.run_id = MOCK_RUN_ID
 
-    mocker.patch("mlflow_tracker.weakref.finalize")  # disables finalization
+    mocker.patch("mlflow_tracker.weakref.finalize")  # disables finalizationation
     mocker.patch("mlflow_tracker.mlflow.active_run", side_effect = [None, mock_active_run])
     mock_end_run = mocker.patch("mlflow_tracker.mlflow.end_run")
 

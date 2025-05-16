@@ -3,3 +3,6 @@ src/**/__pycache__/
 src/**/*.pyc
 tests/**/__pycache__/
 tests/**/*.pyc
+mlops_sdk.sublime-project
+mlops_sdk.sublime-workspace
+tests/mlops_sdk.sublime-workspace
