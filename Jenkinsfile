@@ -62,7 +62,7 @@ pipeline {
         // IMPORTANT: Replace this with the actual URL of your MLflow server.
         // If Jenkins and MLflow are on the same machine, use your machine's IP, not 'localhost'.
         // Example: 'http://192.168.1.10:5000'
-        MLFLOW_TRACKING_URI = 'http://localhost:5000'
+        MLFLOW_TRACKING_URI = 'http://10.10.2.85:5000'
     }
 
     stages {
