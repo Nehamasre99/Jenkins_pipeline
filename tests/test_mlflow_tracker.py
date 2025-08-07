@@ -9,11 +9,19 @@ import importlib
 from unittest.mock import patch
 from types import SimpleNamespace
 import pytest
+import mlflow
+
+
+tracking_dir = "/home/neha/Desktop/mlops_sdk/mlruns"
+trash_dir = os.path.join(tracking_dir, ".trash")
+
+# Set MLflow tracking URI properly
+mlflow.set_tracking_uri(f"file://{tracking_dir}")
 
 # Add project root to PYTHONPATH
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../src"))
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
 # Global test constants
 MOCK_EXPERIMENT_ID = "1234"
@@ -298,10 +306,17 @@ def test_log_metrics_without_step(patched_mlflow_tracker, mocker):
 
 
 def test_log_model_saved_folder_exists(patched_mlflow_tracker, mocker):
+    # mlruns_path = os.path.join(os.getcwd(), "mlruns")
+    # os.makedirs(mlruns_path, exist_ok=True)
+    # mlflow.set_tracking_uri("file://" + mlruns_path)
+    mlflow.set_tracking_uri("file:///home/neha/Desktop/mlops_sdk/mlruns")
+    print("Tracking URI set to:", mlflow.get_tracking_uri())
 
     mocker.patch("mlflow_tracker.weakref.finalize")  # disables finalization
     mock_model = mocker.Mock()
     mock_tokenizer = mocker.Mock()
+
+    mocker.patch("mlflow.utils.databricks_utils.get_databricks_runtime_version", return_value=None)
 
     mocker.patch("mlflow_tracker.os.path.exists", return_value = True)
     mock_remove_dir = mocker.patch("mlflow_tracker.shutil.rmtree")
@@ -312,7 +327,6 @@ def test_log_model_saved_folder_exists(patched_mlflow_tracker, mocker):
     # for ex mlflow.pyfunc.log_model()
     mock_model.save_pretrained = mocker.Mock()
     mock_tokenizer.save_pretrained = mocker.Mock()
-
 
     # Patch get_signature
     dummy_signature = mocker.Mock()
@@ -335,7 +349,10 @@ def test_log_model_saved_folder_exists(patched_mlflow_tracker, mocker):
     # Assert save_pretrained was called correctly
     mock_model.save_pretrained.assert_called_once_with(MOCK_SAVE_PATH, safe_serialization=True)
     mock_tokenizer.save_pretrained.assert_called_once_with(MOCK_SAVE_PATH)
-
+    mock_remove_dir.assert_called_once_with(MOCK_SAVE_PATH)
+    mock_model.save_pretrained.assert_called_once_with(MOCK_SAVE_PATH, safe_serialization=True)
+    mock_tokenizer.save_pretrained.assert_called_once_with(MOCK_SAVE_PATH)
+    
     # Assert log_model was called with correct arguments
     mock_log_model.assert_called_once_with(
         artifact_path=MOCK_ARTIFACT_PATH,
@@ -347,7 +364,6 @@ def test_log_model_saved_folder_exists(patched_mlflow_tracker, mocker):
 
 
 def test_log_model_no_saved_folder(patched_mlflow_tracker, mocker):
-
     mocker.patch("mlflow_tracker.weakref.finalize")  # disables finalization
     mock_model = mocker.Mock()
     mock_tokenizer = mocker.Mock()
@@ -371,6 +387,9 @@ def test_log_model_no_saved_folder(patched_mlflow_tracker, mocker):
     mocker.patch("mlflow_tracker.LlmWrapper", return_value=mock_llm_wrapper)
 
     mock_log_model = mocker.patch("mlflow_tracker.mlflow.pyfunc.log_model")
+
+    import mlflow
+    mlflow.set_tracking_uri("/tmp/mlruns")
 
     # creater MLflowTracker() instance
     tracker = patched_mlflow_tracker()

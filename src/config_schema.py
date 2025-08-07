@@ -15,6 +15,8 @@ class BaseMLflowConfig(BaseModel):
     log_system_metrics: bool
     force_cpu: bool
     context_window: int
+    inference_device: Optional[str] = "cpu"
+
 
 class RemoteMLflowConfig(BaseMLflowConfig):
     artifact_uri: str

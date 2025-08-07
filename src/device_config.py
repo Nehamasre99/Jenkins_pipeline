@@ -4,7 +4,7 @@ import os
 import torch
 import yaml
 from typing import Optional, Union
-from config_schema import LocalMLflowConfig, RemoteMLflowConfig
+from .config_schema import LocalMLflowConfig, RemoteMLflowConfig
 
 
 def load_config(config_path: Optional[str] = None) -> tuple[Union[LocalMLflowConfig, RemoteMLflowConfig], str]:
@@ -16,7 +16,7 @@ def load_config(config_path: Optional[str] = None) -> tuple[Union[LocalMLflowCon
     if config_path is None:
         current_dir = os.path.dirname(__file__) # get current path of device.config.py
         # get a relative path two levels up and find mlflow_cnfig.yaml
-        default_path = os.path.join(current_dir, "..", "..", "mlflow_config.yaml")
+        default_path = os.path.join(current_dir, "..", "mlflow_config.yaml")
         # Convert the above relative path to an absolute path
         config_path = os.path.abspath(default_path)
     # If config path is available from env variable or through argument

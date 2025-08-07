@@ -8,11 +8,11 @@ import sys
 import weakref
 import shutil
 import mlflow
-import device_config
+from . import device_config
 
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",".."))
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
+src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
+if src_dir not in sys.path:
+    sys.path.append(src_dir)
 
 from Wrapper import LlmWrapper, get_signature
 

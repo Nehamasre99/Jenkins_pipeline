@@ -1,7 +1,7 @@
 # set mode to "local" to run mlflow tracking on the localhost
 # set mode to "remote" to run mlflow tracking on the remote server
 
-mode: remote  # or "remote"
+mode: local  # or "remote"
 
 # Update these config parameters if you set mode to remote
 mlflow_remote:
