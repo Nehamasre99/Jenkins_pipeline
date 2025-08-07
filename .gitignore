@@ -8,3 +8,4 @@ mlops_sdk.sublime-workspace
 tests/mlops_sdk.sublime-workspace
 venv/
 hf_model/model.safetensors
+venv/
