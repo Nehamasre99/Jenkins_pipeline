@@ -11,3 +11,4 @@ hf_model/model.safetensors
 venv/
 venv/
 hf_model/model.safetensors
+hf_model/
